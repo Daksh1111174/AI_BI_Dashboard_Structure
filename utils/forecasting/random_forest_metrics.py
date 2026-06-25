@@ -427,3 +427,302 @@ class RandomForestMetrics:
             }
 
         )
+        # ==========================================================
+# Additional Imports
+# ==========================================================
+
+from sklearn.model_selection import (
+    TimeSeriesSplit,
+    cross_val_score
+)
+
+import json
+from pathlib import Path
+
+
+class RandomForestMetrics(RandomForestMetrics):
+
+    # ======================================================
+    # Time Series Cross Validation
+    # ======================================================
+
+    @staticmethod
+    def cross_validation(
+        model,
+        X,
+        y,
+        splits=5,
+        scoring="neg_root_mean_squared_error"
+    ):
+
+        cv = TimeSeriesSplit(
+            n_splits=splits
+        )
+
+        scores = cross_val_score(
+
+            estimator=model,
+
+            X=X,
+
+            y=y,
+
+            cv=cv,
+
+            scoring=scoring,
+
+            n_jobs=-1
+
+        )
+
+        return np.abs(scores)
+
+    # ======================================================
+    # Cross Validation Summary
+    # ======================================================
+
+    @staticmethod
+    def cross_validation_summary(scores):
+
+        return {
+
+            "Mean":
+                scores.mean(),
+
+            "Std":
+                scores.std(),
+
+            "Minimum":
+                scores.min(),
+
+            "Maximum":
+                scores.max()
+
+        }
+
+    # ======================================================
+    # Error Distribution
+    # ======================================================
+
+    @staticmethod
+    def error_distribution(
+        y_true,
+        y_pred
+    ):
+
+        error = np.array(y_true) - np.array(y_pred)
+
+        return pd.DataFrame({
+
+            "Residual":
+                error
+
+        })
+
+    # ======================================================
+    # Residual Statistics
+    # ======================================================
+
+    @staticmethod
+    def residual_statistics(
+        y_true,
+        y_pred
+    ):
+
+        residual = np.array(y_true) - np.array(y_pred)
+
+        return {
+
+            "Mean":
+                residual.mean(),
+
+            "Median":
+                np.median(residual),
+
+            "Std":
+                residual.std(),
+
+            "Minimum":
+                residual.min(),
+
+            "Maximum":
+                residual.max()
+
+        }
+
+    # ======================================================
+    # Performance Rating
+    # ======================================================
+
+    @staticmethod
+    def performance_rating(r2):
+
+        if r2 >= 0.95:
+            return "★★★★★ Excellent"
+
+        elif r2 >= 0.90:
+            return "★★★★☆ Very Good"
+
+        elif r2 >= 0.80:
+            return "★★★☆☆ Good"
+
+        elif r2 >= 0.60:
+            return "★★☆☆☆ Fair"
+
+        return "★☆☆☆☆ Poor"
+
+    # ======================================================
+    # Model Comparison Dictionary
+    # ======================================================
+
+    @staticmethod
+    def comparison(
+        model_name,
+        metrics
+    ):
+
+        return {
+
+            "Model":
+                model_name,
+
+            "MAE":
+                metrics["MAE"],
+
+            "RMSE":
+                metrics["RMSE"],
+
+            "MAPE":
+                metrics["MAPE"],
+
+            "R2":
+                metrics["R2"]
+
+        }
+
+    # ======================================================
+    # Export CSV
+    # ======================================================
+
+    def export_csv(
+        self,
+        path="reports/random_forest_metrics.csv"
+    ):
+
+        Path(path).parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        self.dataframe().to_csv(
+            path,
+            index=False
+        )
+
+        return path
+
+    # ======================================================
+    # Export JSON
+    # ======================================================
+
+    def export_json(
+        self,
+        path="reports/random_forest_metrics.json"
+    ):
+
+        Path(path).parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        with open(path, "w") as file:
+
+            json.dump(
+
+                self.results,
+
+                file,
+
+                indent=4,
+
+                default=float
+
+            )
+
+        return path
+
+    # ======================================================
+    # Markdown Report
+    # ======================================================
+
+    def markdown_report(self):
+
+        report = "# Random Forest Performance\n\n"
+
+        for key, value in self.results.items():
+
+            report += f"- **{key}** : {value:.4f}\n"
+
+        return report
+
+    # ======================================================
+    # Complete Summary
+    # ======================================================
+
+    def summary(
+        self,
+        y_true,
+        y_pred
+    ):
+
+        metrics = self.evaluate(
+            y_true,
+            y_pred
+        )
+
+        summary = {
+
+            "Metrics":
+                metrics,
+
+            "Rating":
+                self.performance_rating(
+                    metrics["R2"]
+                ),
+
+            "Residual Statistics":
+
+                self.residual_statistics(
+
+                    y_true,
+
+                    y_pred
+
+                )
+
+        }
+
+        return summary
+
+    # ======================================================
+    # Reset
+    # ======================================================
+
+    def reset(self):
+
+        self.results = {}
+
+    # ======================================================
+    # String Representation
+    # ======================================================
+
+    def __str__(self):
+
+        if not self.results:
+
+            return "RandomForestMetrics(Not Evaluated)"
+
+        return self.dataframe().to_string(
+            index=False
+        )
+        
